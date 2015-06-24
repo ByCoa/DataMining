@@ -4,29 +4,71 @@ author: "Elvis"
 date: "16 de junio de 2015"
 output: html_document
 ---
-```{r}
-# que es esto?
-
-```
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 En el siguiente documento se han omitido los acentos
 
 
 ```{r, echo=FALSE}
 #Carga de librerias
+
 library(devtools)
 library(rpart.plot)
 source_url("https://raw.githubusercontent.com/belgrades/DataMining/master/install.R")
-WPM("install-package", "simpleEducationalLearningSchemes")
-WPM("load-package", "simpleEducationalLearningSchemes")
-ID3 <- make_Weka_classifier("weka/classifiers/trees/Id3") 
 ```
 
-Extraccion y transformacion de datos. En la transformacion se cambian los datos que poseen un valor numero a un valor nominal
+Problema: El siguiente dataset contiene informacion sobre los pacientes y sintomas medicos oftalmologos, y a partir de esta informacion se quiere crear un clasificador para determinar el diagnostico del paciente (si necesita lentes de contacto o no, y que tipo de lentes).
+
+El dataset original esta compuesto por los siguientes datos:
+
+| ID            | Age    | Prescription  | Astigmatic| Tear     | Class   |
+|---------------|:------:|:-------------:|:---------:|:--------:|:-------:|
+| 1             | 1      |  1            |  1        |  1       | 3       |
+| 2             | 1      |  1            |  1        |  2       | 2       |
+| 3             | 1      |  1            |  2        |  1       | 3       |
+| 4             | 1      |  1            |  2        |  2       | 1       |
+| 5             | 1      |  2            |  1        |  1       | 3       |
+| 6             | 1      |  2            |  1        |  2       | 2       |
+| 7             | 1      |  2            |  2        |  1       | 3       |
+| 8             | 1      |  2            |  2        |  2       | 1       |
+| 9             | 2      |  1            |  1        |  1       | 3       |
+| 10            | 2      |  1            |  1        |  2       | 2       |
+| 11            | 2      |  1            |  2        |  1       | 3       |
+| 12            | 2      |  1            |  2        |  2       | 1       |
+| 13            | 2      |  2            |  1        |  1       | 3       |
+| 14            | 2      |  2            |  1        |  2       | 2       |
+| 15            | 2      |  2            |  2        |  1       | 3       |
+| 16            | 2      |  2            |  2        |  2       | 3       |
+| 17            | 3      |  1            |  1        |  1       | 3       |
+| 18            | 3      |  1            |  1        |  2       | 3       |
+| 19            | 3      |  1            |  2        |  1       | 3       |
+| 20            | 3      |  1            |  2        |  2       | 1       |
+| 21            | 3      |  2            |  1        |  1       | 3       |
+| 22            | 3      |  2            |  1        |  2       | 2       |
+| 23            | 3      |  2            |  2        |  1       | 3       |
+| 24            | 3      |  2            |  2        |  2       | 3       |
+
+
+| ID            | TIPO   | RANGO        |NOMINAL        |
+|---------------|:------:|:------------:|:-------------:|
+| AGE           |NUMERICO|    {1,2,3}   | YOUNG         |
+|               |        |              | PRE-PRESBYOPIC|
+|               |        |              | PRESBYOPIC    |
+| PRESCRIPTION  |NUMERICO|    {1,2}     | MYOPE         |
+|               |        |              | HYPERMETROPE  |
+| ASTIGMATIC    |NUMERICO|    {1,2}     | NO            |
+|               |        |              | YES           |
+| TEAR          |NUMERICO|    {1,2}     | REDUCED       |
+|               |        |              | NORMAL        |
+| CLASS         |NUMERICO|    {1,2,3}   | HARD          |
+|               |        |              | SOFT          |
+|               |        |              | NONE          |
+
+Extraccion y transformacion de datos. En la transformacion se cambian los datos que poseen un valor numerico a un valor nominal. No es necesario hacer pre-procesamiento ya que los datos estan completos.
+
+Se utilizo la funcion "factor"" para transformar los valores numericos a nominales de mi data set inicial
+
 ```{r}
 UrlLenses="https://archive.ics.uci.edu/ml/machine-learning-databases/lenses/lenses.data"
-
 data.set = read.csv(UrlLenses, header = FALSE, sep="")
 data.set= subset(x= data.set, select =c("V2","V3","V4","V5","V6"))
 View(data.set)
@@ -44,6 +86,7 @@ Se tomo 1 joven uno con produccion de lagrimas normal.
 Se tomaron 2 personas pre-presbyopic que tiene produccion de lagrimas reducida.
 Se tomo a una persona presbyopic con produccion de lagrimas reducida.
 Adicionalmente estas 4 personas, 2 tienen astigmatismo, 2 con miopia y 2 con hipermetropia.
+La idea es tomar instancias con valores distintos para ver realmente que tan preciso es nuestro clasificador, y no que solo es preciso para un conjunto de instancias que cumplen con cierta condicion
 
 ```{r}
 arreglo = c(2,9,15,23)
@@ -67,12 +110,11 @@ confusionMatrix(test$class, prediccion, dnn = c("Prediction", "Reference"))
 
 El modelo generado por J48 para nuestro caso de estudio tiene una certeza del 100%. 
 
-Ahora utilizando el mismo set de entranamiento crearemos nuestro arbol de decision utilizando la funcion Rpart, y utilizaremos nuestro modelo para predecir la clase a la que pertenecen nuestros individuos en el grupo de prueba.
+Ahora utilizando el mismo set de entranamiento crearemos nuestro arbol de decision utilizando la funcion Rpart, y utilizaremos nuestro modelo para predecir la clase a la que pertenecen nuestros individuos en el grupo de prueba. Minsplit significa la cantidad de observaciones minimas por nodo y CP es el nivel de tolerancia que voy a aceptar para crear una particion
 
 ```{r}
-model = rpart(class ~ ., training, method = "class")
-plot(model,compress = TRUE, uniform = TRUE,branch = 0)
-
+model = rpart(class ~ ., training, method = "class",control=rpart.control (minsplit=3, cp=0.001))
+rpart.plot(model,compress = TRUE, uniform = TRUE,branch = 0)
 prediccion <-predict(model, test, type = "class")
 prediccion
 ```
@@ -81,4 +123,46 @@ prediccion
 confusionMatrix(test$class, prediccion, dnn = c("Prediction", "Reference"))
 ```
 
-El modelo generado por Rpart para nuestro caso de estudio tiene una certeza del 75%. 
+El modelo generado por Rpart para nuestro caso de estudio tiene una certeza del 100%. Con un minsplit = 3 y un cp = 0.001
+
+
+
+```{r}
+model = rpart(class ~ ., training, method = "class",control=rpart.control (minsplit=3, cp=0.1))
+rpart.plot(model,compress = TRUE, uniform = TRUE,branch = 0)
+prediccion <-predict(model, test, type = "class")
+prediccion
+```
+
+```{r}
+confusionMatrix(test$class, prediccion, dnn = c("Prediction", "Reference"))
+```
+
+El modelo generado por Rpart para nuestro caso de estudio tiene una certeza del 100%. Con un minsplit = 3 y un cp = 0.1
+
+
+```{r}
+model = rpart(class ~ ., training, method = "class",control=rpart.control (minsplit=7, cp=0.01))
+rpart.plot(model,compress = TRUE, uniform = TRUE,branch = 0)
+prediccion <-predict(model, test, type = "class")
+prediccion
+```
+
+```{r}
+confusionMatrix(test$class, prediccion, dnn = c("Prediction", "Reference"))
+```
+
+El modelo generado por Rpart para nuestro caso de estudio tiene una certeza del 100%. Con un minsplit = 7 y un cp = 0.01
+
+```{r}
+model = rpart(class ~ ., training, method = "class",control=rpart.control (minsplit=5, cp=0.3))
+rpart.plot(model,compress = TRUE, uniform = TRUE,branch = 0)
+prediccion <-predict(model, test, type = "class")
+prediccion
+```
+
+```{r}
+confusionMatrix(test$class, prediccion, dnn = c("Prediction", "Reference"))
+```
+
+El modelo generado por Rpart para nuestro caso de estudio tiene una certeza del 100%. Con un minsplit = 5 y un cp = 0.3
